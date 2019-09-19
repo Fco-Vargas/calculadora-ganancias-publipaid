@@ -2,11 +2,11 @@
 
 @font-face {
   font-family: "calculadora-publipaid";
-  src:url("/icons/calculadora-publipaid.eot");
-  src:url("/icons/calculadora-publipaid.eot?#iefix") format("embedded-opentype"),
-    url("/icons/calculadora-publipaid.woff") format("woff"),
-    url("/icons/calculadora-publipaid.ttf") format("truetype"),
-    url("/icons/calculadora-publipaid.svg#calculadora-publipaid") format("svg");
+  src:url("./icons/calculadora-publipaid.eot");
+  src:url("./icons/calculadora-publipaid.eot?#iefix") format("embedded-opentype"),
+    url("./icons/calculadora-publipaid.woff") format("woff"),
+    url("./icons/calculadora-publipaid.ttf") format("truetype"),
+    url("./icons/calculadora-publipaid.svg#calculadora-publipaid") format("svg");
   font-weight: normal;
   font-style: normal;
 
