@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <meta name="author" content="Francisco Javier Vargas Garcia | CodeMundo">
+    <meta name="description" content="Herramienta para calcular las ganancias en PubliPaid aplicando o no el interes compuesto.">
+    <meta name="keywords" content="PubliPaid,CodeMundo,Francisco Javier Vargas Garcia, Calculadora, interes compuesto, Herramienta">
+    <title>Calculadora de ganancias publipaid | CodeMundo</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <link rel="stylesheet" href="/css/icons.css">
+    <link rel="stylesheet" href="/css/app.css">
+    <link rel="icon" type="image/png" sizes="16x16" href="/img/favicon.png">
+</head>
+<body>
+    <section class="container pt-3 pb-5" id="app">
+        <h1 class="h3 text-center">Calculadora de ganancias PubliPaid</h1>
+        <div v-if="showForm" class="row">
+            <div class="col-md-6 offset-md-3">
+                <form>
+                    <div class="form-group d-flex">
+                        <div class="custom-control custom-radio">
+                            <input type="radio" value="time" class="custom-control-input" v-model="typeCalculation" id="time" required checked>
+                            <label class="custom-control-label" for="time">Por tiempo</label>
+                        </div>
+                        <div class="custom-control custom-radio ml-4">
+                            <input type="radio" value="gain" class="custom-control-input" v-model="typeCalculation" id="gain" required>
+                            <label class="custom-control-label" for="gain">Por ganancia diaria</label>
+                        </div>
+                    </div>
+                    <div v-if="typeCalculation === 'time'" class="form-row">
+                        <div class="form-group col-sm-6">
+                            <label for="start_date">Fecha de inicio</label>
+                            <input type="date" v-model="startDate" id="start_date" class="form-control" :class="{'is-invalid': errors.startDate}">
+                            <div class="invalid-feedback" v-text="errors.startDate"></div>
+                        </div>
+                        <div class="form-group col-sm-6">
+                            <label for="end_date">Fecha de fin</label>
+                            <input type="date" v-model="endDate" id="end_date" class="form-control" :class="{'is-invalid': errors.endDate}">
+                            <div class="invalid-feedback" v-text="errors.endDate"></div>
+                        </div>
+                    </div>
+                    <div v-else class="form-group">
+                        <label for="desired_daily_gain">Ganancia diaria deseada</label>
+                        <input type="number" id="desired_daily_gain" v-model="desiredDailyGain" class="form-control" min="0" step="any" placeholder="¿Cuanto deses ganar diariamente?" :class="{'is-invalid': errors.desiredDailyGain}">
+                        <div class="invalid-feedback" v-text="errors.desiredDailyGain"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="initial_package">Paquete inicial</label>
+                        <select id="initial_package" v-model="initialPackage" class="form-control" :class="{'is-invalid': errors.initialPackage}">
+                            <option value="10">10</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                            <option value="300">300</option>
+                            <option value="500">500</option>
+                            <option value="1000">1000</option>
+                            <option value="2500">2500</option>
+                            <option value="5000">5000</option>
+                        </select>
+                        <div class="invalid-feedback" v-text="errors.initialPackage"></div>
+                    </div>
+                    <div class="form-group">
+                        <label for="">Paquete para reinvertir</label>
+                        <select id="package" v-model="reinvestmentPackage" class="form-control" :class="{'is-invalid': errors.reinvestmentPackage}">
+                            <option value="">Sin reinversión</option>
+                            <option value="10">10</option>
+                            <option value="50">50</option>
+                            <option value="100">100</option>
+                            <option value="300">300</option>
+                            <option value="500">500</option>
+                            <option value="1000">1000</option>
+                            <option value="2500">2500</option>
+                            <option value="5000">5000</option>
+                        </select>
+                        <div class="invalid-feedback" v-text="errors.reinvestmentPackage"></div>
+                    </div>
+                    <button type="button" @click="startCalculation" class="btn btn-primary btn-block">Iniciar cálculo</butto>
+                </form>
+            </div>
+        </div>
+        <div v-else>
+            <div style="overflow-x: auto;">
+                <div class="d-flex justify-content-between align-items-center mb-3" style="min-width: 800px;">
+                    <p class="mb-0">Días: <span v-text="days.length" class="font-weight-bold"></span></p>
+                    <p class="mb-0">Paquetes comprados: <span v-text="purchasedPackages.length" class="font-weight-bold"></span></p>
+                    <p class="mb-0">Paquetes activos: <span v-text="purchasedPackages.filter(package => package.active).length" class="font-weight-bold"></span></p>
+                    <p class="mb-0">Paquetes finalizados: <span v-text="purchasedPackages.filter(package => !package.active).length" class="font-weight-bold"></span></p>
+                    <button type="button" class="btn btn-primary" @click="showForm = true">Mostrar formulario</button>
+                </div>
+            </div>
+            <div class="table-responsive" style="max-height: calc(100vh - 176px); overflow-y: auto;">
+                <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th scope="col">Fecha</th>
+                        <th scope="col">Saldo disponible</th>
+                        <th scope="col">Ganancia diaria</th>
+                        <th scope="col">Paquetes comprados</th>
+                        <th scope="col">Paquetes que inician</th>
+                        <th scope="col">Paquetes que finalizan</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="day in days">
+                        <td v-text="day.date"></td>
+                        <td v-text="day.availableBalance"></td>
+                        <td v-text="day.dailyGain"></td>
+                        <td v-text="day.purchasedPackages"></td>
+                        <td v-text="day.startedPackages"></td>
+                        <td v-text="day.completedPackages"></td>
+                    </tr>
+                </tbody>
+            </table>
+            </div>
+        </div>
+    </section>
+    <div class="copy-right w-100 text-center">
+        <p class="mb-0 d-inline-flex align-items-center"><span class="icon-code mr-1 d-flex"></span> with <span class="icon-heart mx-1"></span> By <a href="https://youtube.com/codemundo" target="_blank" class="ml-1">Francisco Vargas</a></p>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.24.0/moment.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+    <script type="text/javascript">
+        const vm = new Vue({
+            el: '#app',
+            data: {
+                typeCalculation: 'time',
+                initialPackage: '10',
+                reinvestmentPackage: '',
+                desiredDailyGain: 0,
+                startDate: null,
+                endDate: null,
+                purchasedPackages: [],
+                days: [],
+                packages: [
+                    {name: '10', cost: 10, gain: 0.32},
+                    {name: '50', cost: 50, gain: 1.60},
+                    {name: '100', cost: 100, gain: 3.20},
+                    {name: '300', cost: 300, gain: 9.84},
+                    {name: '500', cost: 500, gain: 16.39},
+                    {name: '1000', cost: 1000, gain: 32.78},
+                    {name: '2500', cost: 2500, gain: 84},
+                    {name: '5000', cost: 5000, gain: 168}
+                ],
+                errors: {},
+                showForm: true,
+            },
+            methods: {
+                startCalculation() {
+                    // Validar los datos del formulario
+                    if(!this.validate()) {
+                        return;
+                    }
+                    this.showForm = false;
+                    this.days = [];
+                    this.purchasedPackages = [];
+                    // Buscar el paquete para las reinvesiones
+                    let reinvestmentPackage = this.packages.find(package => package.name === this.reinvestmentPackage);
+                    let date = this.typeCalculation === 'time' ? moment(this.startDate, 'YYYY-MM-DD') : moment();
+                    let today = {};
+                    let yesterday = {};
+                    let gainToDelete = 0;
+                    let completedPackages = null;
+                    let endDate = this.typeCalculation === 'time' ? moment(this.endDate, 'YYYY-MM-DD') : null;
+                    // Paquete incial comprado
+                    let newPackage = {
+                        purchaseDate: moment(date),
+                        startDate: moment(date).add(1, 'days'),
+                        endDate: moment(date).add(36, 'days'),
+                        gain: this.packages.find(package => package.name === this.initialPackage).gain,
+                        name: this.packages.find(package => package.name === this.initialPackage).name,
+                        active: true,
+                    };
+                    // Datos de la cuenta el primer día
+                    today = {
+                        availableBalance: 0,
+                        dailyGain: newPackage.gain,
+                        date: date.format('D MMM YYYY'),
+                        purchasedPackages: 1,
+                        startedPackages: 0,
+                        completedPackages: 0,
+                    };
+                    this.days.push(today);
+                    this.purchasedPackages.push(newPackage);
+                    date.add(1, 'days');
+                    while (this.stop(date, endDate, today.dailyGain, this.desiredDailyGain)) {
+                        // Obtener el registro generado el día anterior a fecha actual
+                        yesterday = this.days[this.days.length - 1];
+                        today = {
+                            availableBalance: parseFloat((yesterday.availableBalance + yesterday.dailyGain).toFixed(2)),
+                            dailyGain: yesterday.dailyGain,
+                            date: date.format('D MMM YYYY'),
+                            purchasedPackages: 0,
+                            startedPackages: 0,
+                            completedPackages: 0,
+                        };
+                        // Validar si se puede reinverti
+                        while (reinvestmentPackage && today.availableBalance >= reinvestmentPackage.cost) {
+                            // Nuevo paquete comprado
+                            newPackage = {
+                                purchaseDate: moment(date),
+                                startDate: moment(date).add(1, 'days'),
+                                endDate: moment(date).add(36, 'days'),
+                                gain: reinvestmentPackage.gain,
+                                name: reinvestmentPackage.name,
+                                active: true,
+                            };
+                            // Modificar los valores para el registro de la fecha actual
+                            today.purchasedPackages += 1;
+                            today.dailyGain = parseFloat((today.dailyGain + newPackage.gain).toFixed(2));
+                            today.availableBalance = parseFloat((today.availableBalance - reinvestmentPackage.cost).toFixed(2));
+                            this.purchasedPackages.push(newPackage);
+                        }
+                        gainToDelete = 0;
+                        // Buscar y obtener los paquetes que finalizan en la fecha actual
+                        completedPackages = this.purchasedPackages.filter(package => package.endDate.isSame(date));
+                        completedPackages.forEach(package => {
+                            // Sumar las ganancias diarias para que después sean restadas a las gancias diarias de la fecha actual
+                            gainToDelete += package.gain
+                            // Desactivar los paquetes ya finalizados
+                            package.active = false;
+                        });
+                        // Restar de la gancias diarias actuales las ganancias diarias de los paquetes ya finalizados
+                        today.dailyGain = parseFloat((today.dailyGain - gainToDelete).toFixed(2));
+                        // Guardar el número de paquetes finalizados en la fecha actual
+                        today.completedPackages = completedPackages.length;
+                        // Guardar cantidad de paquetes que inician ha generar en la fecha actual
+                        today.startedPackages = this.purchasedPackages.filter(package => package.startDate.isSame(date)).length;
+                        // Guardar el registro de la fecha actual
+                        this.days.push(today);
+                        // Pasar al siguiente día
+                        date.add(1, 'days');
+                    }
+                },
+                validate() {
+                    // Borrar los errores
+                    this.errors = {};
+
+                    if (this.typeCalculation === 'time') {
+                        // Validaciones unicamente cuando se va hacer el calculo por tiempoi
+                        let sDate = moment(this.startDate, 'YYYY/MM/DD');
+                        let eDate = moment(this.endDate, 'YYYY/MM/DD');
+
+                        if (!sDate.isValid()) {
+                            this.errors.startDate = 'La fecha de inicio debe cumplir con el formato YYYY/MM/DD'
+                            return false;
+                        }
+                        if (!eDate.isValid()) {
+                            this.errors.endDate = 'La fecha de fin debe complir con el formato YYYY/MM/DD'
+                            return false;
+                        }
+                        if (!eDate.isAfter(sDate)) {
+                            this.errors.endDate = 'La fecha de fin debe ser mayor a la fecha de inicio'
+                            return;
+                        }
+
+                    } else {
+                        // Validaciones para cuando el cálculo se va hacer por un monto deseado
+                        if (this.desiredDailyGain === '' || this.desiredDailyGain === null) {
+                            this.errors.desiredDailyGain = 'El campo ganancia diaria deseada es requerido';
+                            return;
+                        }
+                        if (this.desiredDailyGain <= 0) {
+                            this.errors.desiredDailyGain = 'El campo ganancia diaria deseada debe ser mayor a cero';
+                            return;
+                        }
+                    }
+                    // Validar los paquetes
+                    let initialPackage = this.packages.find(package => package.name === this.initialPackage);
+                    if (!initialPackage) {
+                        this.errors.initialPackage = 'El campo paquete inicial es invalido';
+                        return false;
+                    }
+
+                    let reinvestmentPackage = this.packages.find(package => package.name === this.reinvestmentPackage);
+                    if (this.reinvestmentPackage !== '' && !reinvestmentPackage) {
+                        this.errors.reinvestmentPackage = 'El campo paquete para reinvertir es invalido';
+                        return false;
+                    }
+                    return true;
+                },
+                stop(date, endDate, amount, desiredDailyGain) {
+                    // Condiciones para detener el cálculo, tomando en cuenta el tipo de calculo
+                    if (this.typeCalculation === 'time') {
+                        return date.isSameOrBefore(endDate);
+                    }
+                    return parseFloat(amount) <= parseFloat(desiredDailyGain) && amount > 0;
+                }
+            }
+        });
+    </script>
+</body>
+</html>
